@@ -9,6 +9,12 @@ import acts.examples
 import acts.examples.reconstruction as acts_reco
 from acts import UnitConstants as u
 
+
+from acts.examples.reconstruction import (
+    TrackSelectorConfig,
+    CkfConfig
+    )
+
 #Load config
 from job_configs import ChainConfig
 cfg = ChainConfig.Config()
@@ -40,7 +46,11 @@ def addCKFTracks(
     writeTrackSummary: bool = True,
     writeTrackStates: bool = False,
     writePerformance: bool = True,
-    writeCovMat=False,
+    writeCovMat: bool = False,
+    inputMeasurements: str = "measurements",
+    inputInitialTrackParameters: str="estimatedparameters",
+    inputSeeds : str = "estimatedseeds",
+    outputTracks : str = "ckf_tracks",
     logLevel: Optional[acts.logging.Level] = None,
 ) -> None:
     """This function steers the seeding
@@ -120,14 +130,14 @@ def addCKFTracks(
                 )
             ]
         ),
-        inputMeasurements="measurements",
-        inputInitialTrackParameters="estimatedparameters",
+        inputMeasurements=inputMeasurements,
+        inputInitialTrackParameters=inputInitialTrackParameters,
         inputSeeds=(
-            "estimatedseeds"
+            inputSeeds
             if ckfConfig.seedDeduplication or ckfConfig.stayOnSeed
             else ""
         ),
-        outputTracks="ckf_tracks",
+        outputTracks=outputTracks,
         findTracks=acts.examples.TrackFindingAlgorithm.makeTrackFinderFunction(
             trackingGeometry, field, customLogLevel()
         ),
@@ -150,11 +160,12 @@ def addCKFTracks(
         ),
     )
     s.addAlgorithm(trackFinder)
+    ## DANGER.. Overriding...
     s.addWhiteboardAlias("tracks", trackFinder.config.outputTracks)
-
+    
 
     truthMatchCfg = TrackTruthMatcher.Config()
-    truthMatchCfg.inputTracks=trackFinder.config.outputTracks
+    truthMatchCfg.inputTracks = outputTracks #trackFinder.config.outputTracks
     truthMatchCfg.inputParticles="particles_selected"
     truthMatchCfg.inputMeasurementParticlesMap="measurement_particles_map"
     truthMatchCfg.outputTrackParticleMatching="ckf_track_particle_matching"
@@ -171,27 +182,27 @@ def addCKFTracks(
         config = truthMatchCfg,
         level=customLogLevel())
     
-    s.addAlgorithm(matchAlg)
-    s.addWhiteboardAlias(
-        "track_particle_matching", matchAlg.config.outputTrackParticleMatching
-    )
-    s.addWhiteboardAlias(
-        "particle_track_matching", matchAlg.config.outputParticleTrackMatching
-    )
+    #s.addAlgorithm(matchAlg)
+    #s.addWhiteboardAlias(
+    #    "track_particle_matching", matchAlg.config.outputTrackParticleMatching
+    #)
+    #s.addWhiteboardAlias(
+    #    "particle_track_matching", matchAlg.config.outputParticleTrackMatching
+    #)
 
-    addTrackWriters(
-        s,
-        name="ckf",
-        tracks=trackFinder.config.outputTracks,
-        outputDirCsv=outputDirCsv,
-        outputDirRoot=outputDirRoot,
-        writeSummary=writeTrackSummary,
-        writeStates=writeTrackStates,
-        writeFitterPerformance=writePerformance,
-        writeFinderPerformance=writePerformance,
-        writeCovMat=writeCovMat,
-        logLevel=logLevel,
-    )
+    #addTrackWriters(
+    #    s,
+    #    name="ckf",
+    #    tracks=trackFinder.config.outputTracks,
+    #    outputDirCsv=outputDirCsv,
+    #    outputDirRoot=outputDirRoot,
+    #    writeSummary=writeTrackSummary,
+    #    writeStates=writeTrackStates,
+    #    writeFitterPerformance=writePerformance,
+    #    writeFinderPerformance=writePerformance,
+    #    writeCovMat=writeCovMat,
+    #    logLevel=logLevel,
+    #)
 
     return s
 
@@ -420,12 +431,15 @@ def addIterativeTracking(
         geo_dir : pathlib.Path = None,
         trackingGeometry : acts.TrackingGeometry = None,
         field: Literal[acts.MagneticFieldMapRz, acts.MagneticFieldMapXyz] = None,
-        iterations: int = 3,
+        iterations: int = 0,
         inputTracks: str = "ckf_tracks",
         outputDir: Optional[Union[Path, str]] = None,):
     
-        trackCollectionForMerging = ["seed-tracks"]
-        mergedTrackCollection = "seed-tracks-merged"
+        seedTrackCollectionForMerging = ["seed-tracks"]
+        trackCollectionForMerging = ["ckf_tracks"]
+        mergedSeedTrackCollection = "seed-tracks-merged"
+        mergedTrackCollection = "ckf-tracks-merged"
+        
         outputIndexingMaps = []
         for iteration in range(1,iterations):
             inputMeasurements = "measurements"
@@ -484,33 +498,84 @@ def addIterativeTracking(
                 iterationIndex = iteration,
             )
 
+
+            # run CKF
+            print("PF:: Running CKF! at iteration ", str(iteration))
+            addCKFTracks(
+                s,
+                trackingGeometry,
+                field,
+                TrackSelectorConfig(pt=(0.05 * u.MeV, None),
+                                    nMeasurementsMin=cfg.tracking.nMeasurementsMin,
+                                    maxHoles=2,
+                                    maxOutliers=2,
+                                    maxSharedHits=2),
+                CkfConfig(seedDeduplication=True,
+                          stayOnSeed=True,
+                          chi2CutOffMeasurement=15.,
+                          chi2CutOffOutlier=25.,
+                          numMeasurementsCutOff=cfg.tracking.ckfMeasPerSurf),
+                twoWay=cfg.tracking.twoWayCKF,
+                outputDirRoot=outputDir,
+                writeTrackSummary=cfg.tracking.writeTrackSummary,
+                writeTrackStates=False,
+                inputMeasurements=outputMeasurements,
+                inputInitialTrackParameters="estimatedparameters_iter_"+str(iteration),
+                inputSeeds="estimatedseeds_iter_"+str(iteration),
+                outputTracks="ckf_tracks_iter_"+str(iteration),
+                logLevel=acts.logging.INFO
+            )
+                        
+
             # Add the seed tracks for merging and the measurement mapping for this iteration
-            trackCollectionForMerging.append("seed-tracks_iter_"+str(iteration))
+            seedTrackCollectionForMerging.append("seed-tracks_iter_"+str(iteration))
+            trackCollectionForMerging.append("ckf_tracks_iter_"+str(iteration))
             outputIndexingMaps.append(outputIndexingMap)
 
-            
+        '''
+        # Merge seeds
         addTrackMerger(s,
-                       trackCollectionForMerging,
+                       seedTrackCollectionForMerging,
                        outputIndexingMaps,
-                       mergedTrackCollection,
+                       mergedSeedTrackCollection,
                        acts.logging.INFO,
                        )
         
-
+        # Match seeds
         addTrackTruthMatcher(
             s,
-            inputTracks=mergedTrackCollection,
+            inputTracks=mergedSeedTrackCollection,
             inputParticles="particles_selected",
             inputMeasurementParticlesMap="measurement_particles_map",
             outputTrackParticleMatching="seed_merged_particle_matching",
             outputParticleTrackMatching="particle_seed_merged_matching",
         )
+        '''
+
+
+        # Merge tracks
+        addTrackMerger(s,
+                       trackCollectionForMerging,
+                       outputIndexingMaps,
+                       mergedTrackCollection,
+                       acts.logging.DEBUG,
+                       )
         
+        # Match tracks
+        addTrackTruthMatcher(
+            s,
+            inputTracks=mergedTrackCollection,
+            inputParticles="particles_selected",
+            inputMeasurementParticlesMap="measurement_particles_map",
+            outputTrackParticleMatching="ckf_tracks_merged_particle_matching",
+            outputParticleTrackMatching="particle_ckf_tracks_merged_matching",
+        )
         
+        '''
         s.addWriter(
             acts.examples.root.RootTrackFinderPerformanceWriter(
                 level=acts.logging.DEBUG,
-                inputTracks=mergedTrackCollection,
+                inputTracks=mergedSeedTrackCollection,
                 inputParticles="particles_selected",
                 inputTrackParticleMatching="seed_merged_particle_matching",
                 inputParticleTrackMatching="particle_seed_merged_matching",
@@ -520,4 +585,20 @@ def addIterativeTracking(
                 filePath=str(outputDir / "performance_merged_seed.root"),
             )
         )
+        '''
+
+        s.addWriter(
+            acts.examples.root.RootTrackFinderPerformanceWriter(
+                level=acts.logging.DEBUG,
+                inputTracks=mergedTrackCollection,
+                inputParticles="particles_selected",
+                inputTrackParticleMatching="ckf_tracks_merged_particle_matching",
+                inputParticleTrackMatching="particle_ckf_tracks_merged_matching",
+                inputParticleMeasurementsMap="particle_measurements_map",
+                effPlotToolConfig = alice3_plotting.effPlotToolConfig,
+                fakePlotToolConfig = alice3_plotting.fakePlotToolConfig,
+                filePath=str(outputDir / "performance_merged_ckf_tracks.root"),
+            )
+        )
         
+

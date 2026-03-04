@@ -434,7 +434,7 @@ alice3_writers.addCKFTracks(
     outputDirRoot=outputDir,
     writeTrackSummary=cfg.tracking.writeTrackSummary,
     writeTrackStates=False,
-    logLevel=acts.logging.INFO
+    logLevel=acts.logging.VERBOSE
 )
 
 s = addAmbiguityResolution(
@@ -452,7 +452,7 @@ alice3_writers.addIterativeTracking(s,
                                     trackingGeometry=trackingGeometry,
                                     geo_dir=geo_dir,
                                     field=field,
-                                    iterations=0,
+                                    iterations=cfg.general.iterations,
                                     inputTracks="ckf_tracks",
                                     outputDir=outputDir)
 

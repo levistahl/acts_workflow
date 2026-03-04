@@ -24,6 +24,14 @@ from acts.examples.reconstruction import (
     # SeedFilterMLDBScanConfig,
 )
 
+from enum import Enum, auto
+
+class SeedingMode(Enum):
+    HIGH_PT = auto()
+    LOW_PT = auto()
+    LOOPERS = auto()
+    STRANGENESS = auto()
+
 
 ### Iterative tracking: seeding parameters ###
 minSeedPts = [0.4, 0.150, 0.07]
@@ -488,13 +496,10 @@ def addSeeding(
     
     logLevel = acts.examples.defaultLogging(s, logLevel)()
     #logLevel = acts.logging.DEBUG
-    logger = acts.logging.getLogger("addSeeding")
-    logger.setLevel(logLevel)
-
+    
     # Create starting parameters from either particle smearing or combined seed
     # finding and track parameters estimation
     if seedingAlgorithm == SeedingAlgorithm.TruthSmeared:
-        logger.info("Using smeared truth particles for seeding")
         addTruthSmearedSeeding(
             s=s,
             rnd=rnd,
@@ -523,7 +528,6 @@ def addSeeding(
         perSeedParticleHypothesis = None
         # Run either: truth track finding or seeding
         if seedingAlgorithm == SeedingAlgorithm.TruthEstimated:
-            logger.info("Using truth track finding from space points for seeding")
             seeds, perSeedParticleHypothesis = addTruthEstimatedSeeding(
                 s,
                 spacePoints,
@@ -533,7 +537,6 @@ def addSeeding(
                 logLevel=logLevel,
             )
         elif seedingAlgorithm == SeedingAlgorithm.HoughTransform:
-            logger.info("Using Hough Transform seeding")
             houghTransformConfig.inputSpacePoints = [spacePoints]
             houghTransformConfig.inputMeasurements = "measurements"
             houghTransformConfig.outputProtoTracks = "prototracks"
@@ -541,7 +544,6 @@ def addSeeding(
             houghTransformConfig.trackingGeometry = trackingGeometry
             seeds = addHoughTransformSeeding(s, houghTransformConfig, logLevel)
         elif seedingAlgorithm == SeedingAlgorithm.AdaptiveHoughTransform:
-            logger.info("Using Adaptive Hough Transform seeding")
             adaptiveHoughTransformConfig.inputSpacePoints = [spacePoints]
             adaptiveHoughTransformConfig.outputProtoTracks = "prototracks"
             adaptiveHoughTransformConfig.outputSeeds = "seeds"
@@ -559,7 +561,6 @@ def addSeeding(
                 s, adaptiveHoughTransformConfig, logLevel=logLevel
             )
         elif seedingAlgorithm == SeedingAlgorithm.Gbts:
-            logger.info("Using Gbts seeding")
             # output of algs changed, only one output now
             seeds = addGbtsSeeding(
                 s,
@@ -574,7 +575,6 @@ def addSeeding(
                 lutInputConfigFile,
             )
         elif seedingAlgorithm == SeedingAlgorithm.Hashing:
-            logger.info("Using Hashing seeding")
             seeds, buckets = addHashingSeeding(
                 s,
                 spacePoints,
@@ -588,7 +588,6 @@ def addSeeding(
                 logLevel,
             )
         elif seedingAlgorithm == SeedingAlgorithm.GridTriplet:
-            logger.info("Using grid triplet seeding")
             seeds = acts.examples.reconstruction.addGridTripletSeeding(
                 s,
                 spacePoints,
@@ -602,7 +601,6 @@ def addSeeding(
             )
             
         elif seedingAlgorithm == SeedingAlgorithm.OrthogonalTriplet:
-            logger.info("Using orthogonal triplet seeding")
             seeds = addOrthogonalTripletSeeding(
                 s,
                 spacePoints,
@@ -614,7 +612,7 @@ def addSeeding(
                 logLevel,
             )
         else:
-            logger.fatal("unknown seedingAlgorithm %s", seedingAlgorithm)
+            pass
 
         parEstimateAlg = acts.examples.TrackParamsEstimationAlgorithm(
             level=logLevel,
@@ -636,7 +634,7 @@ def addSeeding(
 
         prototracks = "seed-prototracks"+collection_suffix
         s.addAlgorithm(
-            acts.examples.SeedsToPrototracks(
+            acts.examples.SeedsToProtoTracks(
                 level=logLevel,
                 inputSeeds="estimatedseeds"+collection_suffix,
                 outputProtoTracks=prototracks,
@@ -645,7 +643,7 @@ def addSeeding(
 
         tracks = "seed-tracks"+collection_suffix
         s.addAlgorithm(
-            acts.examples.PrototracksToTracks(
+            acts.examples.ProtoTracksToTracks(
                 level=logLevel,
                 inputProtoTracks=prototracks,
                 inputTrackParameters="estimatedparameters"+collection_suffix,
