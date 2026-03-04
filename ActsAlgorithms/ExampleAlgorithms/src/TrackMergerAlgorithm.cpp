@@ -66,8 +66,15 @@ namespace AliceActsTrk {
     auto trackContainer = std::make_shared<Acts::VectorTrackContainer>();
     auto trackStateContainer = std::make_shared<Acts::VectorMultiTrajectory>();
     TrackContainer actsTracksContainer(trackContainer, trackStateContainer);
+
+    // Make sure the containers have the same dynamic content. I assume the track Collection size is not empty.
+    // And all tracks have the same dynamic columns
+    
+    actsTracksContainer.ensureDynamicColumns(trackCollections[0]);
     
     for (size_t itc =0; itc < trackCollections.size(); itc++) {
+
+      ACTS_DEBUG("Checking track collection index " << itc);
       
       // Find out what type of TrackStates this collection has.
       // Only use the first track.
@@ -88,16 +95,24 @@ namespace AliceActsTrk {
         
         auto actsDestProxy = actsTracksContainer.makeTrack();
 
-        if (filledTrackStates)
+        if (filledTrackStates) {
+          ACTS_DEBUG("Track has filled Track States from collection " << itc);
           actsDestProxy.copyFrom(track);
+
+          //tracks.addColumn<BranchStopper::BranchState>("MyBranchState");
+          //tracksTemp.addColumn<BranchStopper::BranchState>("MyBranchState");
+          
+          //tracks.addColumn<unsigned int>("trackGroup");
+          //tracksTemp.addColumn<unsigned int>("trackGroup");
+                    
+        }
         else {
+          std::cout<<"PF:: DEBUG:: Copying track"<<std::endl;
           //actsDestProxy.copyFromShallow(track);
           actsDestProxy.copyFromWithoutStates(track);
           // append track states (cheap), but they're in the wrong order
           for (const auto& srcTrackState : track.trackStatesReversed()) {
 
-            
-                        
             auto destTrackState = actsDestProxy.appendTrackState(srcTrackState.getMask());
             destTrackState.copyFrom(srcTrackState, Acts::TrackStatePropMask::None,
                                     true);
