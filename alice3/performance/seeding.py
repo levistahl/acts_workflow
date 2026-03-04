@@ -33,9 +33,6 @@ class SeedingMode(Enum):
     STRANGENESS = auto()
 
 
-### Iterative tracking: seeding parameters ###
-minSeedPts = [0.4, 0.150, 0.07]
-
 #############################################
 #### IGOR's SEEDING: SOME OTHER PARAMS   ####
 #############################################
@@ -76,95 +73,44 @@ enableMat = True
 
 
 
-PavelSeedFinderConfigArg = SeedFinderConfigArg(
-        r=(None, 200 * u.mm),
-        deltaR=(deltaRmin[seedParamOption] * u.mm,
-                deltaRmax[seedParamOption] * u.mm),
-        collisionRegion=(-250 * u.mm, 250 * u.mm),
-        z=(-1300 * u.mm, 1300 * u.mm),
-        maxSeedsPerSpM=maxSeedsPerMiddleSp[seedParamOption],
-        sigmaScattering=maxSigmaScattering[seedParamOption],
-        radLengthPerSeed=radiationLengthPerSeed[seedParamOption],
-        minPt=minSeedPt * u.GeV,
-        impactMax=maxImpact[seedParamOption] * u.mm,
-        cotThetaMax=maxCotTheta[seedParamOption],
-        rRangeMiddleSP=[
-            [5, 60],
-            [5, 100],
-            [5, 100],
-            [10, 130],
-            [10, 130],
-            [10, 130],
-            [10, 130],
-            [10, 130],
-            [10, 130],
-            [10, 130],
-            [5, 100],
-            [5, 100],
-            [5, 60],
-        ],
-        seedConfirmation=enableSeedconfirmation,
-        centralSeedConfirmationRange=acts.SeedConfirmationRangeConfig(
-            zMinSeedConf=-620 * u.mm,
-            zMaxSeedConf=620 * u.mm,
-            rMaxSeedConf=36 * u.mm,
-            nTopForLargeR=1,
-            nTopForSmallR=2,
-        ),
-        forwardSeedConfirmationRange=acts.SeedConfirmationRangeConfig(
-            zMinSeedConf=-1220 * u.mm,
-            zMaxSeedConf=1220 * u.mm,
-            rMaxSeedConf=36 * u.mm,
-            nTopForLargeR=1,
-            nTopForSmallR=2,
-        ),
-        useVariableMiddleSPRange=False,
-        # deltaRMiddleMinSPRange=10 * u.mm,
-        # deltaRMiddleMaxSPRange=10 * u.mm,
-        # deltaRMiddleSPRange=(1 * u.mm, 10 * u.mm),
-    )
-
-def get_seed_finder_config(iteration=0):
+def get_seed_finder_config(iteration: int = 0, **overrides) -> SeedFinderConfigArg:
     """
     Get seeding configuration for a given iteration.
     Args:
     iteration: Iteration number (0,1,2)
+    overriders: kwargs to override iteration-specific defaults
     """
-
+    
     iteration_params = {
         0 : {
-            'minSeedPt' : 0.4
+            'minPt'            : 0.2 * u.GeV,
         },
         
         1 : {
-            'minSeedPt' : 0.150
+            'minPt' : 0.08 * u.GeV,
         },
 
         2 : {
-            'minSeedPt' : 0.07
+            'minPt' : 0.07 * u.GeV,
             }
     }
     
-    params = iteration_params[iteration]
-
-    return SeedFinderConfigArg(
-        r=(None, 210 * u.mm),  # iTOF is at 190 mm! if we want it for seeding
-        # r=(None, 150 * u.mm),
-        # r=(None, 30 * u.mm),
-        deltaR=(1 * u.mm, 200 * u.mm),  # deltaR=(1. * u.mm, 60 * u.mm),
-        collisionRegion=(
+    params = {
+        # --- default parameters ---
+        "r"               : (None, 210 * u.mm),
+        "deltaR"          : (1 * u.mm, 200 * u.mm),
+        "collisionRegion" : (
             -collisionRegion_forSeeds * u.mm,
             collisionRegion_forSeeds * u.mm,
         ),
-        z=(-1000 * u.mm, 1000 * u.mm),
-        maxSeedsPerSpM=maxSeedsPerSpM,  # 2 is minimum, >2 is better for Pb-Pb
-        sigmaScattering=sigmaScattering,
-        radLengthPerSeed=radLengthPerSeed,  
-        minPt=params['minSeedPt'] * u.GeV,
-        impactMax=impParForSeeds * u.mm,  # important! IB vs ML seeds (e.g. 1 mm is ok for IB seeds, 5 mm - for ML seeds)
-        cotThetaMax=27.2899,
-        seedConfirmation=True,
-        centralSeedConfirmationRange=acts.SeedConfirmationRangeConfig(
+        "z": (-1000 * u.mm, 1000 * u.mm),
+        "maxSeedsPerSpM" : maxSeedsPerSpM,
+        "sigmaScattering": sigmaScattering,
+        "radLengthPerSeed": radLengthPerSeed,
+        "impactMax": impParForSeeds * u.mm,
+        "cotThetaMax": 27.2899,
+        "seedConfirmation": True,
+        "centralSeedConfirmationRange": acts.SeedConfirmationRangeConfig(
             zMinSeedConf=-620 * u.mm,
             zMaxSeedConf=620 * u.mm,
             rMaxSeedConf=4.9
@@ -172,79 +118,34 @@ def get_seed_finder_config(iteration=0):
             nTopForLargeR=1,  # number of top space points that confirm my seed at larger R, 1 - no confirmation
             nTopForSmallR=2,
         ),
-        forwardSeedConfirmationRange=acts.SeedConfirmationRangeConfig(
+        "forwardSeedConfirmationRange": acts.SeedConfirmationRangeConfig(
             zMinSeedConf=-1220 * u.mm,
             zMaxSeedConf=1220 * u.mm,
             rMaxSeedConf=26 * u.mm,  # 15 * u.mm,  #36 * u.mm,
             nTopForLargeR=1,
             nTopForSmallR=2,
         ),
-        # skipPreviousTopSP=True,
-        useVariableMiddleSPRange=True,
-        deltaRMiddleSPRange=(0.2 * u.mm, 1.0 * u.mm),
-    )
+        "useVariableMiddleSPRange": True,
+        "deltaRMiddleSPRange": (0.2 * u.mm, 1.0 * u.mm),
+
+        # Iteration 0 defaults that will be overridden later
+        **iteration_params[0]
+        
+        }
+
+    print("PF::params before update ", params)
+    
+    # Layer on iteration-specific values
+    params.update(iteration_params.get(iteration, {}))
+
+    # Layer on any explicit call-site overrides (highest priority)
+    params.update(overrides)
 
 
-PavelSeedFilterConfigArg = SeedFilterConfigArg(
-        seedConfirmation=enableSeedconfirmation,
-        maxSeedsPerSpMConf=5,
-        maxQualitySeedsPerSpMConf=5,
-    )
+    print("PF::params updated ",params)
 
-PavelSpacePointGridConfigArg = SpacePointGridConfigArg(
-        zBinEdges=[
-            -1300.0,
-            -1100.0,
-            -900.0,
-            -700.0,
-            -400.0,
-            -250.0,
-            -50.0,
-            50.0,
-            250.0,
-            400.0,
-            700.0,
-            900.0,
-            1100.0,
-            1300.0,
-        ],
-        impactMax=3. * u.mm,
-        phiBinDeflectionCoverage=3,
-    )
+    return SeedFinderConfigArg(**params)
 
-PavelSeedingAlgorithmConfigArg = SeedingAlgorithmConfigArg(
-        # zBinNeighborsTop=[
-        # [0, 0],
-        # [-1, 0],
-        # [-1, 0],
-        # [-1, 0],
-        # [-1, 0],
-        # [-1, 0],
-        # [-1, 1],
-        # [0, 1],
-        # [0, 1],
-        # [0, 1],
-        # [0, 1],
-        # [0, 1],
-        # [0, 0],
-        # ],
-        # zBinNeighborsBottom=[
-        # [0, 1],
-        # [0, 1],
-        # [0, 1],
-        # [0, 1],
-        # [0, 1],
-        # [0, 1],
-        # [0, 0],
-        # [-1, 0],
-        # [-1, 0],
-        # [-1, 0],
-        # [-1, 0],
-        # [-1, 0],
-        # [-1, 0],
-        # ],
-        # numPhiNeighbors=1,
-    )
 
 DefaultSeedFinderConfigArg = SeedFinderConfigArg(
         r=(None, 210 * u.mm),  # iTOF is at 190 mm! if we want it for seeding
@@ -782,6 +683,3 @@ def addSeedPerformanceWriters(
     )
 
 
-#acts.examples.NamedTypeArgs(
-#    config=SeedFilterMLDBScanConfig,
-#)

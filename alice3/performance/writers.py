@@ -478,9 +478,9 @@ def addIterativeTracking(
                 geoSelectionConfigFile    = geo_dir / "../seedingConfigurations" / cfg.seeding.seedingLayers,
                 seedFinderConfigArg       = alice3_seeding.get_seed_finder_config(iteration),
                 seedFinderOptionsArg      = alice3_seeding.DefaultSeedFinderOptionsArg,
-                seedFilterConfigArg       = alice3_seeding.PavelSeedFilterConfigArg,
-                spacePointGridConfigArg   = alice3_seeding.PavelSpacePointGridConfigArg,
-                seedingAlgorithmConfigArg = alice3_seeding.PavelSeedingAlgorithmConfigArg,
+                seedFilterConfigArg       = alice3_seeding.DefaultSeedFilterConfigArg,
+                spacePointGridConfigArg   = alice3_seeding.DefaultSpacePointGridConfigArg,
+                seedingAlgorithmConfigArg = alice3_seeding.DefaultSeedingAlgorithmConfigArg,
                 outputDirRoot=outputDir,
                 initialSigmas=[
                     1 * u.mm,

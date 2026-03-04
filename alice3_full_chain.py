@@ -283,7 +283,6 @@ def runFullChain(cfg=None, args=None):
     )
 
 
-    print("PF:: Adding the DigiParticleSelection")
     alice3_simulation.addDigiParticleSelection(
         s,
         ParticleSelectorConfig(
@@ -314,111 +313,11 @@ def runFullChain(cfg=None, args=None):
         s,
         trackingGeometry,
         field,
-        SeedFinderConfigArg(
-            r=(None, 210 * u.mm),  # iTOF is at 190 mm! if we want it for seeding
-            # r=(None, 150 * u.mm),
-            # r=(None, 30 * u.mm),
-            # deltaR=(1 * u.mm, 120 * u.mm),  # deltaR=(1. * u.mm, 60 * u.mm),
-            deltaR=(1 * u.mm, 200 * u.mm),  # deltaR=(1. * u.mm, 60 * u.mm),
-            collisionRegion=(
-                -IA_collisionRegion_forSeeds * u.mm,
-                IA_collisionRegion_forSeeds * u.mm,
-            ),
-            z=(-1000 * u.mm, 1000 * u.mm),
-            maxSeedsPerSpM=cfg.seeding.maxSeedsPerSpM,  # 2 is minimum, >2 is better for Pb-Pb
-            sigmaScattering=cfg.seeding.sigmaScattering,
-            radLengthPerSeed=cfg.seeding.radLengthPerSeed,
-            minPt=cfg.seeding.minSeedPt * u.GeV,
-            impactMax=cfg.seeding.impParForSeeds
-            * u.mm,  # important! IB vs ML seeds (e.g. 1 mm is ok for IB seeds, 5 mm - for ML seeds)
-            cotThetaMax=27.2899,
-            seedConfirmation=True,
-            centralSeedConfirmationRange=acts.SeedConfirmationRangeConfig(
-                zMinSeedConf=-620 * u.mm,
-                zMaxSeedConf=620 * u.mm,
-                rMaxSeedConf=4.9
-                * u.mm,  # 36 * u.mm,  # IA: dramatically affects acceptance at eta ~4. <5 * u.mm  gives best results
-                nTopForLargeR=1,  # number of top space points that confirm my seed at larger R, 1 - no confirmation
-                nTopForSmallR=2,
-            ),
-            forwardSeedConfirmationRange=acts.SeedConfirmationRangeConfig(
-                zMinSeedConf=-1220 * u.mm,
-                zMaxSeedConf=1220 * u.mm,
-                rMaxSeedConf=26 * u.mm,  # 15 * u.mm,  #36 * u.mm,
-                nTopForLargeR=1,
-                nTopForSmallR=2,
-            ),
-            # skipPreviousTopSP=True,
-            useVariableMiddleSPRange=True,
-            deltaRMiddleSPRange=(0.2 * u.mm, 1.0 * u.mm),
-        ),
+        alice3_seeding.get_seed_finder_config(iteration=0),
         SeedFinderOptionsArg(bFieldInZ=cfg.seeding.bField * u.T, beamPos=(0 * u.mm, 0 * u.mm)),
-        SeedFilterConfigArg(
-            seedConfirmation=True if cfg.seeding.impParForSeeds < 2.0 else False,  # mm
-            # If seedConfirmation is true we classify seeds as "high-quality" seeds.
-            # Seeds that are not confirmed as "high-quality" are only selected if no
-            # other "high-quality" seed has been found for that inner-middle doublet
-            # Maximum number of normal seeds (not classified as "high-quality" seeds)
-            # in seed confirmation
-            maxSeedsPerSpMConf=cfg.seeding.filter_maxSeedsPerSpMConf,
-            maxQualitySeedsPerSpMConf=cfg.seeding.filter_maxQualitySeedsPerSpMConf,
-            # Maximum number of "high-quality" seeds for each inner-middle SP-dublet in
-            # seed confirmation. If the limit is reached we check if there is a normal
-            # quality seed to be replaced
-        ),
-        SpacePointGridConfigArg(
-            # zBinEdges=[
-            # -4000.0,
-            # -2500.0,
-            # -2000.0,
-            # -1320.0,
-            # -625.0,
-            # -350.0,
-            # -250.0,
-            # 250.0,
-            # 350.0,
-            # 625.0,
-            # 1320.0,
-            # 2000.0,
-            # 2500.0,
-            # 4000.0,
-            # ],
-            impactMax=1.0 * u.mm,
-            phiBinDeflectionCoverage=3,
-        ),
-        SeedingAlgorithmConfigArg(
-            # zBinNeighborsTop=[
-            # [0, 0],
-            # [-1, 0],
-            # [-1, 0],
-            # [-1, 0],
-            # [-1, 0],
-            # [-1, 0],
-            # [-1, 1],
-            # [0, 1],
-            # [0, 1],
-            # [0, 1],
-            # [0, 1],
-            # [0, 1],
-            # [0, 0],
-            # ],
-            # zBinNeighborsBottom=[
-            # [0, 1],
-            # [0, 1],
-            # [0, 1],
-            # [0, 1],
-            # [0, 1],
-            # [0, 1],
-            # [0, 0],
-            # [-1, 0],
-            # [-1, 0],
-            # [-1, 0],
-            # [-1, 0],
-            # [-1, 0],
-            # [-1, 0],
-            # ],
-            # numPhiNeighbors=1,
-        ),
+        alice3_seeding.DefaultSeedFilterConfigArg,
+        alice3_seeding.DefaultSpacePointGridConfigArg,
+        alice3_seeding.DefaultSeedingAlgorithmConfigArg,
         geoSelectionConfigFile=geo_dir / "../seedingConfigurations" / cfg.seeding.seedingLayers,
         seedingAlgorithm = SeedingAlgorithm.GridTriplet if cfg.seeding.seedingAlgo == "GridTriplet" else "TruthSmeared",
         outputDirRoot=outputDir,
@@ -461,7 +360,7 @@ def runFullChain(cfg=None, args=None):
                                         trackingGeometry=trackingGeometry,
                                         geo_dir=geo_dir,
                                         field=field,
-                                        iterations=0,
+                                        iterations=cfg.general.iterations,
                                         inputTracks="ckf_tracks",
                                         outputDir=outputDir)
 
